@@ -78,10 +78,8 @@ class App:
         if len(self.window.grid_slaves()) > 1:
             for i, value in enumerate(self.window.grid_slaves()):
                 if '.!label' in str(value):
-                    print(self.window.grid_slaves())
                     self.window.grid_slaves()[i].destroy()
                     self.window.grid_slaves()[i].destroy()
-                    print(self.window.grid_slaves())
                     break
         weather_data = tk.Label(
             self.window,
