@@ -127,3 +127,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+Weather_API_GUI/API.txt
+*.xml
+.idea/pyprojects.iml
