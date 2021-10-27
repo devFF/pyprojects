@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup
 from PIL import Image, ImageTk
 from io import BytesIO
 
+
 class App:
     def __init__(self):
         # Узнаем имя пользователя
@@ -48,9 +49,6 @@ class App:
         if self.city_mes == 'yes':
             self.city_box.current(len(self.city_list) - 1)
             self.weather_info()
-            #self.put_weather_ico = tk.Canvas(self.window, height=50, width=50)
-            #self.c_put_weather_ico = self.put_weather_ico.create_image(0, 0, anchor='nw', image=self.get_ico())
-            #self.put_weather_ico.grid(row=1, column=2)
         if self.city_mes == 'no':
             messagebox.showinfo(title='Location',
                                 message='Choose a city from the list')
@@ -141,10 +139,20 @@ class App:
 
 
     def my_weather(self, city):
-        """Use openweathermap.org to get weathercast in city
+        """Use openweathermap.org to get current weather in city
         Return content of response"""
         API_KEY = self.read_api()
         url = 'https://api.openweathermap.org/data/2.5/weather?q={}&appid={}'.format(city, API_KEY)
+        r = requests.get(url)
+        content = r.text
+        content_json = r.json()
+        return (content_json)
+
+    def my_weather_forecast(self, city, time):
+        """Use openweathermap.org to get weather forecast in city
+                Return content of response"""
+        API_KEY = self.read_api()
+        url = 'https://api.openweathermap.org/data/2.5/forecast?q={}&appid={}'.format(city, API_KEY)
         r = requests.get(url)
         content = r.text
         content_json = r.json()
