@@ -1,6 +1,6 @@
 # Building projects into executable files for Windows and Linux
 # 1) Install pywin32 and pyinstaller:
-pip install pypiwin32
+pip install pypiwin32  # FOR WINDOWS ONLY !!!
 
 pip install pyinstaller
 
