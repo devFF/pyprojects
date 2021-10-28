@@ -1,5 +1,5 @@
 # Description:
-https://github.com/devFF/pyprojects/blob/main/Weather_API_GUI/Interface.png
+![Screenshot](Interface.png)
 
 Программа для определения погоды. Здесь используются библиотеки: requests - для работы с API, Tkinter - для создания интерфейса.
 
