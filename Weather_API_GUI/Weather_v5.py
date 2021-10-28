@@ -45,7 +45,7 @@ class App:
         w_height, w_width = 660, 775
         self.window.geometry('{}x{}'.format(w_height,w_width))
         self.window.resizable(False, False)  # Запрещаем менять размер окна
-        self.bg_color = '#FDEAA8'  # Выбираем цвет фона the best is'#DDDEED' last #D7FDFC
+        self.bg_color = '#D0F0C0'  # Выбираем цвет фона the best is'#FDEAA8' last #D7FDFC
         self.font = 'Comic Sans MS'
         self.font_size = 16
         self.window['bg'] = self.bg_color
@@ -219,12 +219,18 @@ class App:
         self.all_data = []
         self.all_temp = []
         self.all_real_temp = []
+        determine_start_time = True
         try:
             counter = 0
             for i in range(len(self.weather_forecast['list'])):
                 self.all_data.append(self.weather_forecast['list'][i]['dt_txt'])
                 self.all_temp.append(round((self.weather_forecast['list'][i]['main']['temp'] - 273.15), ORDER))
                 self.all_real_temp.append(round((self.weather_forecast['list'][i]['main']['feels_like'] - 273.15), ORDER))
+                if '00:00:00' in self.weather_forecast['list'][i]['dt_txt'] and \
+                        self.current_data not in self.weather_forecast['list'][i]['dt_txt'] and determine_start_time:
+                    # Определяем положение времени 00:00:00 следующего дня для графика
+                    self.start_time = i
+                    determine_start_time = False
                 if '15:00:00' in self.weather_forecast['list'][i]['dt_txt']:
                     if self.current_data not in self.weather_forecast['list'][i]['dt_txt'] and counter < 2:
                         temp_data_in_K = self.weather_forecast['list'][i]['main']['temp']
@@ -311,8 +317,8 @@ class App:
         os.chdir('Temp')
 
     def funcForFormatter(self, x, pos):
-        date_list_night = np.arange(5,38,8)
-        date_list_day = np.arange(9,34,8)
+        date_list_night = np.arange(self.start_time+1,38,8)  # 5,38,8
+        date_list_day = np.arange(self.start_time+5,34,8)  # 9,38,8
         x = int(x)
 
         if x in date_list_night:
@@ -330,7 +336,7 @@ class App:
         fig.patch.set_facecolor(self.bg_color)
         ax.patch.set_facecolor(self.bg_color)
         xdata = np.arange(0,len(self.all_data),1)
-        xmin, xmax = xdata[5], xdata[-3]  # удаляем прогнозы на текущий день и на начало 5-го дня
+        xmin, xmax = xdata[self.start_time], xdata[-3]  # удаляем прогнозы на текущий день и на начало 5-го дня
         ymin, ymax = min(self.all_real_temp), max(self.all_temp)
 
         # Создаем форматер
@@ -346,9 +352,9 @@ class App:
         ax.set_title("Four day weather forecast", fontsize=14, color='black')
         ax.set_ylabel("Temperature, [°C]", fontsize=14, color='black')
 
-        for i in np.arange(5,38,8):
+        for i in np.arange(self.start_time+1,38,8):
             ax.vlines(i, ymin, ymax, color='black')
-        for i in np.arange(9,34,8):
+        for i in np.arange(self.start_time+5,34,8):
             ax.vlines(i, ymin, ymax, color='black', linestyles='--')
         ax.plot(xdata, self.all_temp, label = '$T$', color = 'red')
         ax.plot(xdata, self.all_real_temp, label ='$T_{feel}$', color = '#0F27FF')
