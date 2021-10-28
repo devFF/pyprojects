@@ -42,10 +42,12 @@ class App:
         # Создаем рабочую область и тему
         self.window = tk.Tk()
         self.window.title("Weather forecast")
-        w_height, w_width = 645, 775
+        w_height, w_width = 660, 775
         self.window.geometry('{}x{}'.format(w_height,w_width))
         self.window.resizable(False, False)  # Запрещаем менять размер окна
-        self.bg_color = '#02D0E3'
+        self.bg_color = '#FDEAA8'  # Выбираем цвет фона the best is'#DDDEED' last #D7FDFC
+        self.font = 'Comic Sans MS'
+        self.font_size = 16
         self.window['bg'] = self.bg_color
 
         # Централизуем положения окна
@@ -66,7 +68,7 @@ class App:
         # Выбор города ТЕКСТ СЛЕВА ОТ БОКСА ВЫБОРА ГОРОДА
         self.greetings = tk.Label(self.window,
                                   text='Select city:',
-                                  font=('Times New Roman', 20),
+                                  font=(self.font, self.font_size),
                                   justify='left', width=9, bg=self.bg_color)
         self.greetings.grid(column=0, row=0, sticky='w')
 
@@ -75,7 +77,7 @@ class App:
         self.city_list.append(self.city)
 
         # Создаем БОКС ВЫБОРА ГОРОДА
-        self.city_box = Combobox(self.window, font=('Times New Roman', 20), justify='left')
+        self.city_box = Combobox(self.window, font=(self.font, 20), justify='left')
         self.city_box['values'] = self.city_list
 
         # Обработка диалогового окна Location
@@ -115,7 +117,7 @@ class App:
             self.window,
             text='Now temperature is {}° C, feels like {}° C'.format(self.temperature,
                                                                          self.real_temperature),
-            font=('Times New Roman', 18), justify='left', bg=self.bg_color)
+            font=(self.font, self.font_size), justify='left', bg=self.bg_color)
         weather_data.grid(column=0, row=1, sticky='w')
 
         # Обрабатываем прогноз погоды, выводим текст прогноза
@@ -131,7 +133,7 @@ class App:
             image = ImageTk.PhotoImage(Image.open(img_list[i]))
 
             if 'plt' not in img_list[i]:
-                label = tk.Label(image=image, bg=self.bg_color)
+                label = tk.Label(image=image, justify='right', bg=self.bg_color)
                 label.photo = image
                 label.grid(row=i + 1, column=1)
             else:
@@ -264,7 +266,7 @@ class App:
                     text='{} day temperature is {}° C, feels like {}° C'.format(days[i],
                                                                               day_temperature_list[i],
                                                                               day_feel_temperature_list[i]),
-                    font=('Times New Roman', 18), justify='left',bg=self.bg_color)
+                    font=(self.font, self.font_size), justify='left',bg=self.bg_color)
                 weather_data_day.grid(column=0, row=2 * i + 2, sticky='w')
 
                 weather_data_evening = tk.Label(
@@ -272,7 +274,7 @@ class App:
                     text='{} evening temperature is {}° C, feels like {}° C'.format(days[i],
                                                                                   evening_temperature_list[i],
                                                                                   evening_feel_temperature_list[i]),
-                    font=('Times New Roman', 18), justify='left', bg=self.bg_color)
+                    font=(self.font, self.font_size), justify='left', bg=self.bg_color)
                 weather_data_evening.grid(column=0, row=2 * i + 3, sticky='w')
 
         except Exception as ex:
@@ -311,22 +313,19 @@ class App:
     def funcForFormatter(self, x, pos):
         date_list_night = np.arange(5,38,8)
         date_list_day = np.arange(9,34,8)
-        print(date_list_day, date_list_night)
         x = int(x)
 
         if x in date_list_night:
             date = str(self.all_data[x-1]).split()
-            print(date)
             return u'{}\n{}'.format(date[0][5:],date[1][:-3])  # Используем срез, чтобы обрезать год и секунды
 
         if x in date_list_day:
             date = str(self.all_data[x-1]).split()
-            print(date)
             return u'{}\n{}'.format(date[0][5:],date[1][:-3])  # Используем срез, чтобы обрезать год и секунды
 
 
     def plot(self):
-        fig = plt.figure(figsize=(6.45, 4.8), dpi=100)
+        fig = plt.figure(figsize=(6.6, 4.8), dpi=100)
         ax = fig.add_subplot(111)
         fig.patch.set_facecolor(self.bg_color)
         ax.patch.set_facecolor(self.bg_color)
@@ -345,7 +344,7 @@ class App:
         ax.set_xlim(xmin, xmax)
         ax.set_ylim(ymin, ymax)
         ax.set_title("Four day weather forecast", fontsize=14, color='black')
-        ax.set_ylabel("Temperature, [C]", fontsize=14, color='black')
+        ax.set_ylabel("Temperature, [°C]", fontsize=14, color='black')
 
         for i in np.arange(5,38,8):
             ax.vlines(i, ymin, ymax, color='black')
