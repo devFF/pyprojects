@@ -1,5 +1,5 @@
 # Description:
-![Screenshot](Interface.png 300x200)
+![Screenshot](Interface.png =300x200)
 
 Программа для определения погоды. Здесь используются библиотеки: requests - для работы с API, Tkinter - для создания интерфейса.
 
