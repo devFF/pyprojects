@@ -356,8 +356,8 @@ class App:
         ax.xaxis.set_major_formatter(formatter)
         ax.set_xlim(xmin, xmax)
         ax.set_ylim(ymin, ymax)
-        ax.set_title("Four day weather forecast", fontsize=14, color='black', font=self.font)
-        ax.set_ylabel("Temperature, [°C]", fontsize=14, color='black')
+        ax.set_title("Four day weather forecast", color='black', font=self.font, size=self.font_size)
+        ax.set_ylabel("Temperature, [°C]", font=self.font, size=self.font_size, color='black')
 
         for i in np.arange(self.start_time,self.end_time,8):  # 38
             ax.vlines(i, ymin, ymax, color='black')
@@ -365,7 +365,7 @@ class App:
             ax.vlines(i, ymin, ymax, color='black', linestyles='--')
         ax.plot(xdata, self.all_temp, label = '$T$', color = 'red')
         ax.plot(xdata, self.all_real_temp, label ='$T_{feel}$', color = '#0F27FF')
-        plt.legend()
+        plt.legend(fontsize=14)
         plt.savefig('plt.png')
         plt.close()
 
