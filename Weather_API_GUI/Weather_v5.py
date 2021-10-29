@@ -7,7 +7,7 @@ from tkinter import ttk
 import os
 import geocoder
 from bs4 import BeautifulSoup
-from PIL import Image, ImageTk
+from PIL import Image, ImageTk, ImageDraw
 from io import BytesIO
 import datetime
 import shutil
@@ -73,7 +73,7 @@ class App:
         self.greetings = tk.Label(self.window,
                                   text='Select city:',
                                   font=(self.font, self.font_size),
-                                  justify='left', width=9, bg=self.bg_color)
+                                  justify='left', bg=self.bg_color)
         self.greetings.grid(column=0, row=0, sticky='w')
 
         # Получаем список городов России и добавляем текущий город в общий список
@@ -82,7 +82,7 @@ class App:
 
         # Создаем БОКС ВЫБОРА ГОРОДА
         self.city_box = Combobox(self.window, values=self.city_list,
-                                 state='readonly', font=(self.font, 20),
+                                 state='readonly', font=(self.font, self.font_size),
                                  justify='left', background='white', foreground="black")
 
         # Обработка диалогового окна Location
@@ -324,17 +324,17 @@ class App:
         os.chdir('Temp')
 
     def funcForFormatter(self, x, pos):
-        date_list_night = np.arange(self.start_time,self.end_time,8)  # 5,38,8
+        date_list_night = np.arange(self.start_time,self.end_time+1,8)  # 5,38,8
         date_list_day = np.arange(self.start_time+4,self.end_time,8)  # 9,38,8
         x = int(x)
 
         if x in date_list_night:
             date = str(self.all_data[x]).split()
-            return u'{}\n{}'.format(date[0][5:],date[1][:-3])  # Используем срез, чтобы обрезать год и секунды
+            return u'{}\n{}'.format(date[0][5:], date[1][:-3])  # Используем срез, чтобы обрезать год и секунды
 
         if x in date_list_day:
             date = str(self.all_data[x]).split()
-            return u'{}\n{}'.format(date[0][5:],date[1][:-3])  # Используем срез, чтобы обрезать год и секунды
+            return u'{}\n{}'.format(date[0][5:], date[1][:-3])  # Используем срез, чтобы обрезать год и секунды
 
 
     def plot(self):
@@ -343,7 +343,7 @@ class App:
         fig.patch.set_facecolor(self.bg_color)
         ax.patch.set_facecolor(self.bg_color)
         xdata = np.arange(0,len(self.all_data),1)
-        xmin, xmax = xdata[self.start_time], xdata[self.end_time]  # удаляем прогнозы на текущий день и на начало 5-го дня
+        xmin, xmax = xdata[self.start_time], xdata[self.end_time]  # удаляем прогнозы на текущий день и на часть 5 дня
         ymin, ymax = min(self.all_real_temp), max(self.all_temp)
 
         # Создаем форматер
@@ -358,16 +358,23 @@ class App:
         ax.set_ylim(ymin, ymax)
         ax.set_title("Four day weather forecast", color='black', font=self.font, size=self.font_size)
         ax.set_ylabel("Temperature, [°C]", font=self.font, size=self.font_size, color='black')
-
-        for i in np.arange(self.start_time,self.end_time,8):  # 38
+        for i in np.arange(self.start_time, self.end_time, 8):  # 38
             ax.vlines(i, ymin, ymax, color='black')
-        for i in np.arange(self.start_time+4,self.end_time,8):  # 34
+        for i in np.arange(self.start_time+4, self.end_time, 8):  # 34
             ax.vlines(i, ymin, ymax, color='black', linestyles='--')
-        ax.plot(xdata, self.all_temp, label = '$T$', color = 'red')
-        ax.plot(xdata, self.all_real_temp, label ='$T_{feel}$', color = '#0F27FF')
+        ax.plot(xdata, self.all_temp, label='$T$', color='red')
+        ax.plot(xdata, self.all_real_temp, label='$T_{feel}$', color='#0F27FF')
         plt.legend(fontsize=14)
         plt.savefig('plt.png')
         plt.close()
+        im = Image.open('plt.png')
+        draw_text = ImageDraw.Draw(im)
+        draw_text.text(
+            (40,400),
+            'Day', fill='black'
+        )
+        im.save('plt.png')
+
 
 
 if __name__ == '__main__':
