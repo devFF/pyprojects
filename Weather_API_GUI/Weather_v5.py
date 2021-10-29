@@ -39,31 +39,35 @@ class App:
         # Узнаем текущую дату в формате год-месяц-число
         self.current_data = self.get_current_data()
 
-        # Создаем рабочую область и тему
+        # Создаем рабочую область и настриваем оформление
         self.window = tk.Tk()
+        style = ttk.Style()
+        style.map('TCombobox', fieldbackground=[('readonly', 'white')])
+        style.map('TCombobox', selectbackground=[('readonly', 'none')])
+        style.map('TCombobox', selectforeground=[('readonly', 'black')])
         self.window.title("Weather forecast")
         w_height, w_width = 660, 775
-        self.window.geometry('{}x{}'.format(w_height,w_width))
+        self.window.geometry('{}x{}'.format(w_height, w_width))
         self.window.resizable(False, False)  # Запрещаем менять размер окна
-        self.bg_color = '#D0F0C0'  # Выбираем цвет фона the best is'#FDEAA8' last #D7FDFC
+        self.bg_color = '#D0F0C0'  # Выбираем цвет фона
         self.font = 'Comic Sans MS'
         self.font_size = 16
         self.window['bg'] = self.bg_color
 
-        # Централизуем положения окна
+        # Централизуем положения окна. Набор стандартных инструкций из интернета
         self.window.withdraw()
         self.window.update_idletasks()  # Update "requested size" from geometry manager
-        print(self.window.winfo_screenwidth(), self.window.winfo_reqwidth())
         x = (self.window.winfo_screenwidth() - w_width) / 2
         y = (self.window.winfo_screenheight() - w_height) / 2
         self.window.wm_geometry("+%d+%d" % (x, y))
         self.window.deiconify()
 
+        # Пример загрузки готовой темы
         # self.window.tk.call("source", "sun-valley.tcl")
         # self.window.tk.call("set_theme", "light")
 
         # Уточняем местоположение пользователя
-        self.city_mes = tk.messagebox.askquestion(title='Location',
+        city_mes = tk.messagebox.askquestion(title='Location',
                                                   message='Hello, {}, are you from {}?'.format(name, self.city))
         # Выбор города ТЕКСТ СЛЕВА ОТ БОКСА ВЫБОРА ГОРОДА
         self.greetings = tk.Label(self.window,
@@ -77,14 +81,15 @@ class App:
         self.city_list.append(self.city)
 
         # Создаем БОКС ВЫБОРА ГОРОДА
-        self.city_box = Combobox(self.window, font=(self.font, 20), justify='left')
-        self.city_box['values'] = self.city_list
+        self.city_box = Combobox(self.window, values=self.city_list,
+                                 state='readonly', font=(self.font, 20),
+                                 justify='left', background='white', foreground="black")
 
         # Обработка диалогового окна Location
-        if self.city_mes == 'yes':
+        if city_mes == 'yes':
             self.city_box.current(len(self.city_list) - 1)
             self.weather_info()
-        if self.city_mes == 'no':
+        if city_mes == 'no':
             messagebox.showinfo(title='Location',
                                 message='Choose a city from the list')
             self.city_box.current(0)
@@ -351,7 +356,7 @@ class App:
         ax.xaxis.set_major_formatter(formatter)
         ax.set_xlim(xmin, xmax)
         ax.set_ylim(ymin, ymax)
-        ax.set_title("Four day weather forecast", fontsize=14, color='black')
+        ax.set_title("Four day weather forecast", fontsize=14, color='black', font=self.font)
         ax.set_ylabel("Temperature, [°C]", fontsize=14, color='black')
 
         for i in np.arange(self.start_time,self.end_time,8):  # 38
