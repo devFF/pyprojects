@@ -7,9 +7,9 @@
 1) Зарегистрироваться и сгенерировать API ключ: https://home.openweathermap.org/api_keys
 2) Создать текстовый файл API.txt в директории py-файла и вставить в него API-ключ
 3) Для корректной работы исходника выполнить: 
-* pip3 install lxml
-* sudo apt install font-manager
-* sudo apt-get install msttcorefonts -qq
+* ```pip3 install lxml```
+* ```sudo apt install font-manager```
+* ```sudo apt-get install msttcorefonts -qq```
 
 
 
