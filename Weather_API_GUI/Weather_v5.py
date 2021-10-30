@@ -1,3 +1,4 @@
+import time
 import requests
 import tkinter as tk
 from tkinter import messagebox
@@ -17,7 +18,7 @@ import matplotlib.dates as mdates
 import matplotlib.ticker as ticker
 import pandas as pd
 import numpy as np
-
+from multiprocessing import Process
 
 class App:
     def __init__(self):
@@ -156,7 +157,7 @@ class App:
             with open('city_base.txt', 'r') as r:
                 lines = r.readlines()
                 for line in lines:
-                    city_base.append(line.replace('\n', ''))
+                    city_base.append(line.replace('\n', '').strip())
         except FileNotFoundError:
             url = 'https://on55.ru/articles/2'
             response = requests.get(url)
@@ -177,7 +178,7 @@ class App:
             with open('API.txt', 'r') as r:
                 api = r.readline().replace('\n', '')
             return api
-        except:
+        except FileNotFoundError:
             print('Файл API.txt не был найден')
 
     def user_location(self):
@@ -193,6 +194,7 @@ class App:
     def my_weather_forecast(self, forecast, city):
         """Use openweathermap.org to get current weather and weather forecast in city
                 Return content of response"""
+        test = time.time()
         API_KEY = self.read_api()
         if forecast:
             url = 'https://api.openweathermap.org/data/2.5/forecast?q={}&appid={}'.format(city, API_KEY)
@@ -200,6 +202,7 @@ class App:
             url = 'https://api.openweathermap.org/data/2.5/weather?q={}&appid={}'.format(city, API_KEY)
         r = requests.get(url)
         content_json = r.json()
+        print(test-time.time())
         return (content_json)
 
     def get_temperature(self, value):
@@ -344,7 +347,7 @@ class App:
         ax.patch.set_facecolor(self.bg_color)
         xdata = np.arange(0,len(self.all_data),1)
         xmin, xmax = xdata[self.start_time], xdata[self.end_time]  # удаляем прогнозы на текущий день и на часть 5 дня
-        ymin, ymax = min(self.all_real_temp), max(self.all_temp)
+        ymin, ymax = min(self.all_real_temp), max(self.all_temp)+2
 
         # Создаем форматер
         ax.xaxis.set_major_locator(ticker.MultipleLocator(1))
@@ -358,22 +361,50 @@ class App:
         ax.set_ylim(ymin, ymax)
         ax.set_title("Four day weather forecast", color='black', font=self.font, size=self.font_size)
         ax.set_ylabel("Temperature, [°C]", font=self.font, size=self.font_size, color='black')
-        for i in np.arange(self.start_time, self.end_time, 8):  # 38
+        for i in np.arange(self.start_time, self.end_time, 8):
             ax.vlines(i, ymin, ymax, color='black')
-        for i in np.arange(self.start_time+4, self.end_time, 8):  # 34
+        for i in np.arange(self.start_time+4, self.end_time, 8):
             ax.vlines(i, ymin, ymax, color='black', linestyles='--')
         ax.plot(xdata, self.all_temp, label='$T$', color='red')
         ax.plot(xdata, self.all_real_temp, label='$T_{feel}$', color='#0F27FF')
-        plt.legend(fontsize=14)
+        plt.legend(fontsize=14, loc = 'lower left')
+
+        # Паралелльное скачивание картинок
+        procs = []
+        for i in range(self.start_time, self.end_time):
+            proc = Process(target=self.all_ico, args=(i,))
+            procs.append(proc)
+            proc.start()
+        for proc in procs:
+            proc.join()  # Дожидаемся пока скачаются все и только потом идем дальше
+
+        for i in range(self.start_time, self.end_time, 1):
+            if i % 2:
+                test_im = plt.imread('for_plot{}.png'.format(i))
+                x0, y0 = ax.transData.transform((xdata[i]-1, ymax-2.5))
+                ax.figure.figimage(test_im, x0, 380, alpha=0.7)
+            else:
+                test_im = plt.imread('for_plot{}.png'.format(i))
+                x0, y0 = ax.transData.transform((xdata[i] - 1, ymax - 3.5))
+                ax.figure.figimage(test_im, x0, 380-20, alpha=0.7)
         plt.savefig('plt.png')
         plt.close()
+
         im = Image.open('plt.png')
         draw_text = ImageDraw.Draw(im)
-        draw_text.text(
-            (40,400),
-            'Day', fill='black'
-        )
+        draw_text.text((37,437),'day', fill='black')
+        draw_text.text((37, 453), 'time', fill='black')
         im.save('plt.png')
+
+    def all_ico(self, i):
+        ico_name = self.weather_forecast['list'][i]['weather'][0]['icon']
+        ico_url = "https://openweathermap.org/img/wn/%s.png" % ico_name
+        response = requests.get(ico_url)
+        img = Image.open(BytesIO(response.content))
+        img.save('for_plot{}.png'.format(i))
+
+    def benchmark(self, func):
+        pass
 
 
 
