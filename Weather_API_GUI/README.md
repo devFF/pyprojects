@@ -1,12 +1,11 @@
 # Description:
+The program for determining the weather in Russian cities.
 ![Screenshot](Interface.png)
 
-Программа для определения погоды. Здесь используются библиотеки: requests - для работы с API, Tkinter - для создания интерфейса.
-
-# Работа с программой:
-1) Зарегистрироваться и сгенерировать API ключ: https://home.openweathermap.org/api_keys
-2) Создать текстовый файл API.txt в директории py-файла и вставить в него API-ключ
-3) Для корректной работы исходника выполнить: 
+# Working with source code:
+1) Sign up and generate API key: https://home.openweathermap.org/api_keys
+2) Create API.txt in the directory of the py file and insert the API key into it
+3) For the correct work of the source, execute: 
 * ```pip3 install lxml```
 * ```sudo apt install font-manager```
 * ```sudo apt-get install msttcorefonts -qq```
