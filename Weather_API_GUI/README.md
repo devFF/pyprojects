@@ -1,5 +1,5 @@
 # Description:
-The program for determining the weather in Russian cities.
+The program for determining the weather forecast in Russian cities.
 ![Screenshot](Interface.png)
 
 # Working with source code:
@@ -9,6 +9,7 @@ The program for determining the weather in Russian cities.
 * ```pip3 install lxml```
 * ```sudo apt install font-manager```
 * ```sudo apt-get install msttcorefonts -qq```
+* ``` rm -r ~/.cache/matplotlib```
 
 
 

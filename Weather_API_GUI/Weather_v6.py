@@ -1,9 +1,9 @@
+import re
 import time
 import requests
 import tkinter as tk
 from tkinter import messagebox
 from tkinter.ttk import Combobox
-from tkinter import scrolledtext
 from tkinter import ttk
 import os
 import geocoder
@@ -14,11 +14,19 @@ import datetime
 import shutil
 import matplotlib
 import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
 import matplotlib.ticker as ticker
-import pandas as pd
 import numpy as np
-from multiprocessing import Process
+from multiprocessing.pool import ThreadPool
+
+
+def _benchmark(func):
+    """Декоратор для определения времени выполнения функции"""
+    def wrapped(self, *args, **kwargs):
+        start_time = time.time()
+        func(self, *args, **kwargs)  # Выполняем декорируемую функцию
+        print("Время выполнения функции {}: {}".format(func.__name__,round((time.time() - start_time),4)))
+    return wrapped  # Возвращаем результат работы декоратора
+
 
 class App:
     def __init__(self):
@@ -52,7 +60,7 @@ class App:
         self.window.resizable(False, False)  # Запрещаем менять размер окна
         self.bg_color = '#D0F0C0'  # Выбираем цвет фона
         self.font = 'Comic Sans MS'
-        self.font_size = 16
+        self.font_size = 15
         self.window['bg'] = self.bg_color
 
         # Централизуем положения окна. Набор стандартных инструкций из интернета
@@ -105,23 +113,12 @@ class App:
         # Главный цикл программы
         self.window.mainloop()
 
+    # @_benchmark
     def weather_info(self, event=None):
         """Обновляет информацию о погоде"""
         self.city = self.city_box.get()
-        #self.weather = self.my_weather_forecast(forecast=False, city=self.city)  # Текущая погода
-        #self.weather_forecast = self.my_weather_forecast(forecast=True, city=self.city)  # Прогноз погоды
-        procs = []
-        self.weather = Process(target=self.my_weather_forecast(forecast=False, city=self.city))
-        procs.append(self.weather)
-        self.weather.start()
-
-        self.weather_forecast = Process(target=self.my_weather_forecast(forecast=True, city=self.city))
-        procs.append(self.weather)
-        self.weather_forecast.start()
-
-        for proc in procs:
-            proc.join()  # Дожидаемся пока скачаются все и только потом идем дальше
-
+        result = ThreadPool(2).map(self.my_weather_forecast, [False, True])  # Параллельное обращение к API
+        self.weather, self.weather_forecast = result[0], result[1]
         self.temperature = self.get_temperature(value='temp')  # Текущая температура
         self.real_temperature = self.get_temperature(value='feels_like')  # Текущая реальная температура
         # Удаляем информацию о предыдущем городе чтобы не было наслоения данных друг на друга
@@ -145,7 +142,9 @@ class App:
         self.plot()
 
         # Отображаем иконки погоды
-        img_list = ['test.png', 'day0.png', 'evening0.png', 'day1.png', 'evening1.png', 'plt.png']
+        img_list = ['current.png', 'for_plot{}.png'.format(self.start_time+5),
+                    'for_plot{}.png'.format(self.start_time+7), 'for_plot{}.png'.format(self.start_time+13),
+                    'for_plot{}.png'.format(self.start_time+15), 'plt.png']
         all_lebels = []  # Используется чтобы коллектор мусора пайтона не убирал из памяти иконки погоды
         for i in range(len(img_list)):
             image = ImageTk.PhotoImage(Image.open(img_list[i]))
@@ -175,11 +174,15 @@ class App:
             response = requests.get(url)
             soup = BeautifulSoup(response.text, 'lxml')
             items = soup.find_all('td')
+            matchPattern = r"([^А-Я][^-])([А-Я]+)"
+            replacePattern = r"\1 \2"
+
             for i in range(5, len(items)):
                 if i % 5 == 0:
                     city_base.append(items[i].get_text())
             with open('city_base.txt', 'w') as w:
                 for city in city_base:
+                    city = re.sub(matchPattern, replacePattern, city)
                     if 'Оспаривается' not in city:
                         w.writelines("%s\n" % city)
         return city_base
@@ -203,19 +206,20 @@ class App:
                 loc = loc['properties']['city']
         return loc
 
-    def my_weather_forecast(self, forecast, city):
+    def my_weather_forecast(self, forecast):
         """Use openweathermap.org to get current weather and weather forecast in city
                 Return content of response"""
-        test = time.time()
         API_KEY = self.read_api()
         if forecast:
-            url = 'https://api.openweathermap.org/data/2.5/forecast?q={}&appid={}'.format(city, API_KEY)
+            url = 'https://api.openweathermap.org/data/2.5/forecast?q={}&appid={}'.format(self.city, API_KEY)
+            r = requests.get(url)
+            content_json = r.json()
+            return content_json
         else:
-            url = 'https://api.openweathermap.org/data/2.5/weather?q={}&appid={}'.format(city, API_KEY)
-        r = requests.get(url)
-        content_json = r.json()
-        print(time.time() - test)
-        return (content_json)
+            url = 'https://api.openweathermap.org/data/2.5/weather?q={}&appid={}'.format(self.city, API_KEY)
+            r = requests.get(url)
+            content_json = r.json()
+            return content_json
 
     def get_temperature(self, value):
         """Determine temperature from weather"""
@@ -251,7 +255,7 @@ class App:
                     if determine_start_time:
                         self.start_time = i  # Определяем положение времени 00:00:00 следующего дня для графика
                         determine_start_time = False
-                    self.end_time = i
+                    self.end_time = i  #
 
                 if '15:00:00' in self.weather_forecast['list'][i]['dt_txt']:
                     if self.current_data not in self.weather_forecast['list'][i]['dt_txt'] and counter < 2:
@@ -263,11 +267,6 @@ class App:
                         temp_data_in_C = round((temp_data_in_K - 273.15), ORDER)
                         day_feel_temperature_list.append(temp_data_in_C)
 
-                        ico_name = self.weather_forecast['list'][i]['weather'][0]['icon']
-                        ico_url = "https://openweathermap.org/img/wn/%s.png" % ico_name
-                        response = requests.get(ico_url)
-                        img = Image.open(BytesIO(response.content))
-                        img.save('day{}.png'.format(counter))
                         counter += 1
             counter = 0
             for i in range(len(self.weather_forecast['list'])):
@@ -281,11 +280,6 @@ class App:
                         temp_data_in_C = round((temp_data_in_K - 273.15), ORDER)
                         evening_feel_temperature_list.append(temp_data_in_C)
 
-                        ico_name = self.weather_forecast['list'][i]['weather'][0]['icon']
-                        ico_url = "https://openweathermap.org/img/wn/%s.png" % ico_name
-                        response = requests.get(ico_url)
-                        img = Image.open(BytesIO(response.content))
-                        img.save('evening{}.png'.format(counter))
                         counter += 1
             # return temperature_list
             for i in range(2):
@@ -304,18 +298,6 @@ class App:
                                                                                   evening_feel_temperature_list[i]),
                     font=(self.font, self.font_size), justify='left', bg=self.bg_color)
                 weather_data_evening.grid(column=0, row=2 * i + 3, sticky='w')
-
-        except Exception as ex:
-            messagebox.showinfo(title='Error', message='Got data error: \n {}: {}'.format(ex.__class__, ex))
-
-    def get_ico(self):
-        """Скачиваем иконку для текущей погоды"""
-        try:
-            ico_name = self.weather['weather'][0]['icon']
-            ico_url = "https://openweathermap.org/img/wn/%s.png" % ico_name
-            response = requests.get(ico_url)
-            img = Image.open(BytesIO(response.content))
-            img.save('test.png')
         except Exception as ex:
             messagebox.showinfo(title='Error', message='Got data error: \n {}: {}'.format(ex.__class__, ex))
 
@@ -339,8 +321,8 @@ class App:
         os.chdir('Temp')
 
     def funcForFormatter(self, x, pos):
-        date_list_night = np.arange(self.start_time,self.end_time+1,8)  # 5,38,8
-        date_list_day = np.arange(self.start_time+4,self.end_time,8)  # 9,38,8
+        date_list_night = np.arange(self.start_time, self.end_time+1, 8)
+        date_list_day = np.arange(self.start_time+4, self.end_time, 8)
         x = int(x)
 
         if x in date_list_night:
@@ -351,7 +333,7 @@ class App:
             date = str(self.all_data[x]).split()
             return u'{}\n{}'.format(date[0][5:], date[1][:-3])  # Используем срез, чтобы обрезать год и секунды
 
-
+    # @_benchmark
     def plot(self):
         fig = plt.figure(figsize=(6.6, 4.8), dpi=100)
         ax = fig.add_subplot(111)
@@ -381,14 +363,17 @@ class App:
         ax.plot(xdata, self.all_real_temp, label='$T_{feel}$', color='#0F27FF')
         plt.legend(fontsize=14, loc = 'lower left')
 
-        # Паралелльное скачивание картинок
+        """# Паралелльное скачивание картинок
         procs = []
-        for i in range(self.start_time, self.end_time):
+        for i in range(self.start_time-1, self.end_time):
             proc = Process(target=self.all_ico, args=(i,))
             procs.append(proc)
             proc.start()
         for proc in procs:
-            proc.join()  # Дожидаемся пока скачаются все и только потом идем дальше
+            proc.join()  # Дожидаемся пока скачаются все и только потом идем дальше"""
+
+        ico_num_list = list(np.arange(self.start_time-1, self.end_time,1)) # -1 для скачивания каринки из текущего прогноза
+        ThreadPool(len(ico_num_list)).map(self.all_ico, ico_num_list)  # Параллельное скачивание картинок
 
         for i in range(self.start_time, self.end_time, 1):
             if i % 2:
@@ -409,15 +394,23 @@ class App:
         im.save('plt.png')
 
     def all_ico(self, i):
-        ico_name = self.weather_forecast['list'][i]['weather'][0]['icon']
-        ico_url = "https://openweathermap.org/img/wn/%s.png" % ico_name
-        response = requests.get(ico_url)
-        img = Image.open(BytesIO(response.content))
-        img.save('for_plot{}.png'.format(i))
-
-    def benchmark(self, func):
-        pass
-
+        """Download ico-files"""
+        try:
+            if i == self.start_time-1:
+                #  Иконка текущей погоды
+                ico_name = self.weather['weather'][0]['icon']
+                ico_url = "https://openweathermap.org/img/wn/%s.png" % ico_name
+                response = requests.get(ico_url)
+                img = Image.open(BytesIO(response.content))
+                img.save('current.png')
+            else:
+                ico_name = self.weather_forecast['list'][i]['weather'][0]['icon']
+                ico_url = "https://openweathermap.org/img/wn/%s.png" % ico_name
+                response = requests.get(ico_url)
+                img = Image.open(BytesIO(response.content))
+                img.save('for_plot{}.png'.format(i))
+        except Exception as ex:
+            messagebox.showinfo(title='Error', message='Got data error: \n {}: {}'.format(ex.__class__, ex))
 
 
 if __name__ == '__main__':
