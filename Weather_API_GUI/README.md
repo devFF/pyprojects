@@ -14,7 +14,7 @@ The program for determining the weather forecast in Russian cities.
 # To build source code:
 
 1) To fix bug with certificate for library requests:
-Create a **hook-requests.py** file in (venv) **PyInstaller\hooks\** for the requests lib containing
+Create a **hook-requests.py** file in (venv) PyInstaller\hooks\ for the requests lib containing
 
 ```Python
 from PyInstaller.utils.hooks import collect_data_files
@@ -50,7 +50,7 @@ pip install https://github.com/pyinstaller/pyinstaller/archive/develop.tar.gz
 
 3) To fix error *"ModuleNotFoundError: No module named 'PIL._tkinter_finder'"*:
 
-Edit a **hook-PIL.Image.py** file in (venv) **PyInstaller\hooks\**:
+Edit a **hook-PIL.Image.py** file in (venv) PyInstaller\hooks\:
 
 Instead:
 
