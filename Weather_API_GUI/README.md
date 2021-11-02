@@ -14,6 +14,7 @@ The program for determining the weather forecast in Russian cities.
 # To build source code:
 
 1) To fix bug with certificate for library requests:
+
 Create a **hook-requests.py** file in (venv) PyInstaller\hooks\ for the requests lib containing
 
 ```Python
@@ -25,14 +26,14 @@ datas = collect_data_files('requests')
 And add this in the begining of main py-file:
 
 ```Python
-        if getattr(sys, 'frozen', None):  # keyword 'frozen' is for setting basedir while in onefile mode in pyinstaller
-            basedir = sys._MEIPASS
-        else:
-            basedir = os.path.dirname(__file__)
-            basedir = os.path.normpath(basedir)
+if getattr(sys, 'frozen', None):  # keyword 'frozen' is for setting basedir while in onefile mode in pyinstaller
+    basedir = sys._MEIPASS
+else:
+    basedir = os.path.dirname(__file__)
+    basedir = os.path.normpath(basedir)
 
-        # Locate the SSL certificate for requests
-        os.environ['REQUESTS_CA_BUNDLE'] = os.path.join(basedir, 'requests', 'cacert.pem')
+# Locate the SSL certificate for requests
+os.environ['REQUESTS_CA_BUNDLE'] = os.path.join(basedir, 'requests', 'cacert.pem')
 ```
 
 Then build:
@@ -42,6 +43,7 @@ pyinstaller --onefile Weather_v6.py
 ```
 
 2) To fix error *"bs4.FeatureNotFound: Couldn't find a tree builder"*:
+
 Install the current development version of pyinstaller: 
 
 ```
@@ -54,13 +56,13 @@ Edit a **hook-PIL.Image.py** file in (venv) PyInstaller\hooks\:
 
 Instead:
 
-```
+```Python
 hiddenimports = collect_submodules('PIL', lambda name: 'ImagePlugin' in name)
 ```
 
 Paste:
 
-```
+```Python
 hiddenimports = collect_submodules('PIL', lambda name: 'ImagePlugin' in name or 'tkinter' in name)
 ```
 
