@@ -36,6 +36,16 @@ Then build:
 ```pyinstaller --onefile --add-data "Temp/API.txt:."  Weather_v6.py
 ```
 
-To fix bs4.FeatureNotFound: Couldn't find a tree builder:
+2) To fix error "bs4.FeatureNotFound: Couldn't find a tree builder":
+Install the current development version of pyinstaller: 
+```pip install https://github.com/pyinstaller/pyinstaller/archive/develop.tar.gz
+```
+
+3) To fix error "ModuleNotFoundError: No module named 'PIL._tkinter_finder'":
+```123
+```
+
+
+
 
 
