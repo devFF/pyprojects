@@ -11,7 +11,7 @@ The program for determining the weather forecast in Russian cities.
 * ```sudo apt-get install msttcorefonts -qq```
 * ``` rm -r ~/.cache/matplotlib```
 
-# To build source code:
+# Bug fixes at building source code:
 
 1) To fix bug with certificate for library requests:
 
@@ -66,6 +66,10 @@ Paste:
 hiddenimports = collect_submodules('PIL', lambda name: 'ImagePlugin' in name or 'tkinter' in name)
 ```
 
-And build: ``````
+And build: 
+
+```
+pyinstaller --onefile Weather_v6.py
+```
 
 
