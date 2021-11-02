@@ -14,12 +14,23 @@ The program for determining the weather forecast in Russian cities.
 # To build source code:
 
 1) To fix bug with certificate for library requests:
-
-1.1) create a hook-requests.py file in PyInstaller\hooks\ for the requests lib containing
+Create a hook-requests.py file in (venv) PyInstaller\hooks\ for the requests lib containing
 ```Python
 from PyInstaller.utils.hooks import collect_data_files
 # Get the cacert.pem
 datas = collect_data_files('requests')
 ```
+And add this in begining of main py-file:
+```Python
+        if getattr(sys, 'frozen', None):  # keyword 'frozen' is for setting basedir while in onefile mode in pyinstaller
+            basedir = sys._MEIPASS
+        else:
+            basedir = os.path.dirname(__file__)
+            basedir = os.path.normpath(basedir)
 
-dgdfgfdg
+        # Locate the SSL certificate for requests
+        os.environ['REQUESTS_CA_BUNDLE'] = os.path.join(basedir, 'requests', 'cacert.pem')
+```
+
+Then build:
+```pyinstaller --onefile --add-data "Temp/API.txt:."  Weather_v6.py ```
