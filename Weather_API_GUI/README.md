@@ -49,6 +49,7 @@ pip install https://github.com/pyinstaller/pyinstaller/archive/develop.tar.gz
 ```
 
 3) To fix error "ModuleNotFoundError: No module named 'PIL._tkinter_finder'":
+
 Edit a hook-PIL.Image.py file in (venv) PyInstaller\hooks\:
 
 Instead:
