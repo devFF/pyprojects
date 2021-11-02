@@ -49,10 +49,19 @@ pip install https://github.com/pyinstaller/pyinstaller/archive/develop.tar.gz
 ```
 
 3) To fix error "ModuleNotFoundError: No module named 'PIL._tkinter_finder'":
+Edit a hook-PIL.Image.py file in (venv) PyInstaller\hooks\:
+
+Instead:
+
 ```
-123
+hiddenimports = collect_submodules('PIL', lambda name: 'ImagePlugin' in name)
 ```
 
+Paste:
+
+```
+hiddenimports = collect_submodules('PIL', lambda name: 'ImagePlugin' in name or 'tkinter' in name)
+```
 
 
 
