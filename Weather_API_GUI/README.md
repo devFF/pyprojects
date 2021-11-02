@@ -14,6 +14,7 @@ The program for determining the weather forecast in Russian cities.
 # To build source code:
 
 1) To fix bug with certificate for library requests:
+
 1.1) create a hook-requests.py file in PyInstaller\hooks\ for the requests lib containing
 ```Python
 from PyInstaller.utils.hooks import collect_data_files
