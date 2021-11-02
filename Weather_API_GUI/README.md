@@ -15,12 +15,15 @@ The program for determining the weather forecast in Russian cities.
 
 1) To fix bug with certificate for library requests:
 Create a hook-requests.py file in (venv) PyInstaller\hooks\ for the requests lib containing
+
 ```Python
 from PyInstaller.utils.hooks import collect_data_files
 # Get the cacert.pem
 datas = collect_data_files('requests')
 ```
+
 And add this in begining of main py-file:
+
 ```Python
         if getattr(sys, 'frozen', None):  # keyword 'frozen' is for setting basedir while in onefile mode in pyinstaller
             basedir = sys._MEIPASS
@@ -33,16 +36,21 @@ And add this in begining of main py-file:
 ```
 
 Then build:
-```pyinstaller --onefile --add-data "Temp/API.txt:."  Weather_v6.py
+
+```
+pyinstaller --onefile --add-data "Temp/API.txt:."  Weather_v6.py
 ```
 
 2) To fix error "bs4.FeatureNotFound: Couldn't find a tree builder":
 Install the current development version of pyinstaller: 
-```pip install https://github.com/pyinstaller/pyinstaller/archive/develop.tar.gz
+
+```
+pip install https://github.com/pyinstaller/pyinstaller/archive/develop.tar.gz
 ```
 
 3) To fix error "ModuleNotFoundError: No module named 'PIL._tkinter_finder'":
-```123
+```
+123
 ```
 
 
