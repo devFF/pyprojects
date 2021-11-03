@@ -18,6 +18,7 @@ import matplotlib.ticker as ticker
 import numpy as np
 from multiprocessing.pool import ThreadPool
 import sys
+import platform
 
 
 
@@ -34,18 +35,20 @@ def _benchmark(func):
 
 class App:
     def __init__(self):
-        if getattr(sys, 'frozen', None):  # keyword 'frozen' is for setting basedir while in onefile mode in pyinstaller
-            basedir = sys._MEIPASS
-        else:
-            basedir = os.path.dirname(__file__)
-            basedir = os.path.normpath(basedir)
+        # Fix certificate Linux problem with requests library
+        """if "Linux" in platform.system():
+            if getattr(sys, 'frozen',
+                       None):  # keyword 'frozen' is for setting basedir while in onefile mode in pyinstaller
+                basedir = sys._MEIPASS
+            else:
+                basedir = os.path.dirname(__file__)
+                basedir = os.path.normpath(basedir)
 
-        # Locate the SSL certificate for requests
-        os.environ['REQUESTS_CA_BUNDLE'] = os.path.join(basedir, 'requests', 'cacert.pem')
+            # Locate the SSL certificate for requests
+            os.environ['REQUESTS_CA_BUNDLE'] = os.path.join(basedir, 'requests', 'cacert.pem')"""
 
         # Создаем папку Temp для временных файлов
         self.create_temp()
-
         # Узнаем имя пользователя
         name = os.getlogin()
 
@@ -74,6 +77,8 @@ class App:
         self.bg_color = '#D0F0C0'  # Выбираем цвет фона
         self.font = 'Comic Sans MS'
         self.font_size = 15
+        if "Windows" in platform.system():
+            self.font_size = self.font_size - 3
         self.window['bg'] = self.bg_color
 
         # Централизуем положения окна. Набор стандартных инструкций из интернета
