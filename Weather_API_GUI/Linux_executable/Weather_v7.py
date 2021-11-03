@@ -1,0 +1,446 @@
+import re
+import time
+import requests
+import tkinter as tk
+from tkinter import messagebox
+from tkinter.ttk import Combobox
+from tkinter import ttk
+import os
+import geocoder
+from bs4 import BeautifulSoup
+from PIL import Image, ImageTk, ImageDraw
+from io import BytesIO
+import datetime
+import shutil
+import matplotlib
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
+import numpy as np
+from multiprocessing.pool import ThreadPool
+import sys
+
+
+
+def _benchmark(func):
+    """Декоратор для определения времени выполнения функции"""
+
+    def wrapped(self, *args, **kwargs):
+        start_time = time.time()
+        func(self, *args, **kwargs)  # Выполняем декорируемую функцию
+        print("Время выполнения функции {}: {}".format(func.__name__, round((time.time() - start_time), 4)))
+
+    return wrapped  # Возвращаем результат работы декоратора
+
+
+class App:
+    def __init__(self):
+        if getattr(sys, 'frozen', None):  # keyword 'frozen' is for setting basedir while in onefile mode in pyinstaller
+            basedir = sys._MEIPASS
+        else:
+            basedir = os.path.dirname(__file__)
+            basedir = os.path.normpath(basedir)
+
+        # Locate the SSL certificate for requests
+        os.environ['REQUESTS_CA_BUNDLE'] = os.path.join(basedir, 'requests', 'cacert.pem')
+
+        # Создаем папку Temp для временных файлов
+        self.create_temp()
+
+        # Узнаем имя пользователя
+        name = os.getlogin()
+
+        # Костыль, задаем количеством строчек Label + 1(картинка температуры): используется для их обновления
+        self.num_label = 11
+
+        # Узнаем местоположение пользователя
+        self.city = self.user_location()
+
+        # Получаем базу городов России
+        self.city_base = self.city_list()
+
+        # Узнаем текущую дату в формате год-месяц-число
+        self.current_data = self.get_current_data()
+
+        # Создаем рабочую область и настриваем оформление
+        self.window = tk.Tk()
+        style = ttk.Style()
+        style.map('TCombobox', fieldbackground=[('readonly', 'white')])
+        style.map('TCombobox', selectbackground=[('readonly', 'none')])
+        style.map('TCombobox', selectforeground=[('readonly', 'black')])
+        self.window.title("Weather forecast")
+        w_height, w_width = 660, 775
+        self.window.geometry('{}x{}'.format(w_height, w_width))
+        self.window.resizable(False, False)  # Запрещаем менять размер окна
+        self.bg_color = '#D0F0C0'  # Выбираем цвет фона
+        self.font = 'Comic Sans MS'
+        self.font_size = 15
+        self.window['bg'] = self.bg_color
+
+        # Централизуем положения окна. Набор стандартных инструкций из интернета
+        self.window.withdraw()
+        self.window.update_idletasks()  # Update "requested size" from geometry manager
+        x = (self.window.winfo_screenwidth() - w_width) / 2
+        y = (self.window.winfo_screenheight() - w_height) / 2
+        self.window.wm_geometry("+%d+%d" % (x, y))
+        self.window.deiconify()
+
+        # Пример загрузки готовой темы
+        # self.window.tk.call("source", "sun-valley.tcl")
+        # self.window.tk.call("set_theme", "light")
+
+        # Уточняем местоположение пользователя
+        city_mes = tk.messagebox.askquestion(title='Location',
+                                                  message='Hello, {}, are you from {}?'.format(name, self.city))
+        # Выбор города ТЕКСТ СЛЕВА ОТ БОКСА ВЫБОРА ГОРОДА
+        self.greetings = tk.Label(self.window,
+                                  text='Select city:',
+                                  font=(self.font, self.font_size),
+                                  justify='left', bg=self.bg_color)
+        self.greetings.grid(column=0, row=0, sticky='w')
+
+        # Получаем список городов России и добавляем текущий город в общий список
+        self.city_list = self.city_list()
+        self.city_list.append(self.city)
+
+        # Создаем БОКС ВЫБОРА ГОРОДА
+        self.city_box = Combobox(self.window, values=self.city_list,
+                                 state='readonly', font=(self.font, self.font_size),
+                                 justify='left', background='white', foreground="black")
+
+        # Обработка диалогового окна Location
+        if city_mes == 'yes':
+            self.city_box.current(len(self.city_list) - 1)
+            self.weather_info()
+        if city_mes == 'no':
+            messagebox.showinfo(title='Location',
+                                message='Choose a city from the list')
+            self.city_box.current(0)
+            self.weather_info()
+
+        # Определение параметров БОКСА ВЫБОРА ГОРОДА
+        self.city_box.grid(column=0, row=0, sticky='w', padx=125)
+        # Вызов функции при выборе другого города
+        self.city_box.bind("<<ComboboxSelected>>",
+                           lambda event: self.weather_info())
+
+        # Главный цикл программы
+        self.window.mainloop()
+
+    # @_benchmark
+    def weather_info(self, event=None):
+        """Обновляет информацию о погоде"""
+        self.city = self.city_box.get()
+        result = ThreadPool(2).map(self.my_weather_forecast, [False, True])  # Параллельное обращение к API
+        self.weather, self.weather_forecast = result[0], result[1]
+        self.temperature = self.get_temperature(value='temp')  # Текущая температура
+        self.real_temperature = self.get_temperature(value='feels_like')  # Текущая реальная температура
+        # Удаляем информацию о предыдущем городе чтобы не было наслоения данных друг на друга
+        if len(self.window.grid_slaves()) > 1:
+            for i, value in enumerate(self.window.grid_slaves()):
+                if '.!label' in str(value):
+                    for _ in range(self.num_label):
+                        self.window.grid_slaves()[i].destroy()
+                    break
+        weather_data = tk.Label(
+            self.window,
+            text='Now temperature is {}° C, feels like {}° C'.format(self.temperature,
+                                                                         self.real_temperature),
+            font=(self.font, self.font_size), justify='left', bg=self.bg_color)
+        weather_data.grid(column=0, row=1, sticky='w')
+
+        # Обрабатываем прогноз погоды, выводим текст прогноза
+        self.get_temperature_forecast()
+
+        # Тест графика
+        self.plot()
+
+        # Отображаем иконки погоды
+        img_list = ['current.png', 'for_plot{}.png'.format(self.start_time+5),
+                    'for_plot{}.png'.format(self.start_time+7), 'for_plot{}.png'.format(self.start_time+13),
+                    'for_plot{}.png'.format(self.start_time+15), 'plt.png']
+        all_lebels = []  # Используется чтобы коллектор мусора пайтона не убирал из памяти иконки погоды
+        for i in range(len(img_list)):
+            image = ImageTk.PhotoImage(Image.open(img_list[i]))
+
+            if 'plt' not in img_list[i]:
+                label = tk.Label(image=image, justify='right', bg=self.bg_color)
+                label.photo = image
+                label.grid(row=i + 1, column=1)
+            else:
+                label = tk.Label(image=image, justify='left', bg=self.bg_color)
+                label.photo = image
+                label.grid(row=15, columnspan=2)
+            all_lebels.append(label)
+
+    def city_list(self):
+        """Парсинг html-таблицы с использованием библиотеки BeautifulSoup. Таблица состоит из 5 столбцов:
+        1)Город 2)Регион 3)Федеральный округ 4)lat 5)lng
+        Нумерация с 0 до 4, нужен только город => каждый 5 элемент"""
+        city_base = []
+        try:
+            with open('city_base.txt', 'r') as r:
+                lines = r.readlines()
+                for line in lines:
+                    city_base.append(line.replace('\n', '').strip())
+        except FileNotFoundError:
+            url = 'https://on55.ru/articles/2'
+            response = requests.get(url)
+            soup = BeautifulSoup(response.text, 'lxml')
+            items = soup.find_all('td')
+            matchPattern = r"([^А-Я][^-])([А-Я]+)"
+            replacePattern = r"\1 \2"
+
+            for i in range(5, len(items)):
+                if i % 5 == 0:
+                    city_base.append(items[i].get_text())
+            with open('city_base.txt', 'w') as w:
+                for city in city_base:
+                    city = re.sub(matchPattern, replacePattern, city)
+                    if 'Оспаривается' not in city:
+                        w.writelines("%s\n" % city)
+        return city_base
+
+    def read_api(self):
+        """return str with API from file API.txt"""
+        try:
+            with open('API.txt', 'r') as r:
+                api = r.readline().replace('\n', '')
+            return api
+        except FileNotFoundError:
+            print('Файл API.txt не был найден')
+
+    def user_location(self):
+        """Determine user location, return name of the city in STR"""
+        loc = geocoder.ipinfo('me').geojson
+        loc = loc['features']
+        for i, value in enumerate(loc):
+            if 'properties' in value:
+                loc = loc[i]
+                loc = loc['properties']['city']
+        return loc
+
+    def my_weather_forecast(self, forecast):
+        """Use openweathermap.org to get current weather and weather forecast in city
+                Return content of response"""
+        API_KEY = self.read_api()
+        if forecast:
+            url = 'https://api.openweathermap.org/data/2.5/forecast?q={}&appid={}'.format(self.city, API_KEY)
+            r = requests.get(url)
+            content_json = r.json()
+            return content_json
+        else:
+            url = 'https://api.openweathermap.org/data/2.5/weather?q={}&appid={}'.format(self.city, API_KEY)
+            r = requests.get(url)
+            content_json = r.json()
+            return content_json
+
+    def get_temperature(self, value):
+        """Determine temperature from weather"""
+        ORDER = 1
+        try:
+            temp_data_in_K = self.weather['main'][value]
+            temp_data_in_C = round((temp_data_in_K - 273.15), ORDER)
+            return temp_data_in_C
+        except Exception as ex:
+            messagebox.showinfo(title='Error', message='Got data error: \n {}: {}'.format(ex.__class__, ex))
+
+    def get_temperature_forecast(self):
+        """Определяем прогноз погоды на два дня вперед в 15:00 и 21:00, скачиваем иконки, обновляем текст в окне
+        Иконки обновляются в функции weather_info"""
+        ORDER = 1
+        day_temperature_list, evening_temperature_list = [], []
+        day_feel_temperature_list, evening_feel_temperature_list = [], []
+        tomorrow = str(self.weather_forecast['list'][8]['dt_txt']).split()[0]  # Дата завтрашнего дня, убираем часы мин
+        day_after_tomorrow = str(self.weather_forecast['list'][16]['dt_txt']).split()[0]  # Дата послезавтра
+        days = [tomorrow, day_after_tomorrow]
+        self.all_data = []
+        self.all_temp = []
+        self.all_real_temp = []
+        determine_start_time = True
+        try:
+            counter = 0
+            for i in range(len(self.weather_forecast['list'])):
+                self.all_data.append(self.weather_forecast['list'][i]['dt_txt'])
+                self.all_temp.append(round((self.weather_forecast['list'][i]['main']['temp'] - 273.15), ORDER))
+                self.all_real_temp.append(round((self.weather_forecast['list'][i]['main']['feels_like'] - 273.15), ORDER))
+                if '00:00:00' in self.weather_forecast['list'][i]['dt_txt'] and \
+                        self.current_data not in self.weather_forecast['list'][i]['dt_txt']:
+                    if determine_start_time:
+                        self.start_time = i  # Определяем положение времени 00:00:00 следующего дня для графика
+                        determine_start_time = False
+                    self.end_time = i  #
+
+                if '15:00:00' in self.weather_forecast['list'][i]['dt_txt']:
+                    if self.current_data not in self.weather_forecast['list'][i]['dt_txt'] and counter < 2:
+                        temp_data_in_K = self.weather_forecast['list'][i]['main']['temp']
+                        temp_data_in_C = round((temp_data_in_K - 273.15), ORDER)
+                        day_temperature_list.append(temp_data_in_C)
+
+                        temp_data_in_K = self.weather_forecast['list'][i]['main']['feels_like']
+                        temp_data_in_C = round((temp_data_in_K - 273.15), ORDER)
+                        day_feel_temperature_list.append(temp_data_in_C)
+
+                        counter += 1
+            counter = 0
+            for i in range(len(self.weather_forecast['list'])):
+                if '21:00:00' in self.weather_forecast['list'][i]['dt_txt']:
+                    if self.current_data not in self.weather_forecast['list'][i]['dt_txt'] and counter < 2:
+                        temp_data_in_K = self.weather_forecast['list'][i]['main']['temp']
+                        temp_data_in_C = round((temp_data_in_K - 273.15), ORDER)
+                        evening_temperature_list.append(temp_data_in_C)
+
+                        temp_data_in_K = self.weather_forecast['list'][i]['main']['feels_like']
+                        temp_data_in_C = round((temp_data_in_K - 273.15), ORDER)
+                        evening_feel_temperature_list.append(temp_data_in_C)
+
+                        counter += 1
+            # return temperature_list
+            for i in range(2):
+                weather_data_day = tk.Label(
+                    self.window,
+                    text='{} day temperature is {}° C, feels like {}° C'.format(days[i],
+                                                                              day_temperature_list[i],
+                                                                              day_feel_temperature_list[i]),
+                    font=(self.font, self.font_size), justify='left',bg=self.bg_color)
+                weather_data_day.grid(column=0, row=2 * i + 2, sticky='w')
+
+                weather_data_evening = tk.Label(
+                    self.window,
+                    text='{} evening temperature is {}° C, feels like {}° C'.format(days[i],
+                                                                                  evening_temperature_list[i],
+                                                                                  evening_feel_temperature_list[i]),
+                    font=(self.font, self.font_size), justify='left', bg=self.bg_color)
+                weather_data_evening.grid(column=0, row=2 * i + 3, sticky='w')
+        except Exception as ex:
+            messagebox.showinfo(title='Error', message='Got data error: \n {}: {}'.format(ex.__class__, ex))
+
+    def get_current_data(self):
+        """Определяем какое сегодня число и выводим год-месяц-день"""
+        data = str(datetime.datetime.now()).split()
+        data = data[0]
+        return data
+
+    def create_temp(self):
+        """Создаем директорию для временных файлов и переходим в нее"""
+        try:
+            os.mkdir('Temp')
+        except FileExistsError:
+            pass
+        try:
+            shutil.copy2('API.txt', 'Temp')
+        except FileNotFoundError:
+            pass
+
+        os.chdir('Temp')
+
+    def funcForFormatter(self, x, pos):
+        date_list_night = np.arange(self.start_time, self.end_time+1, 8)
+        date_list_day = np.arange(self.start_time+4, self.end_time, 8)
+        x = int(x)
+
+        if x in date_list_night:
+            date = str(self.all_data[x]).split()
+            return u'{}\n{}'.format(date[0][5:], date[1][:-3])  # Используем срез, чтобы обрезать год и секунды
+
+        if x in date_list_day:
+            date = str(self.all_data[x]).split()
+            return u'{}\n{}'.format(date[0][5:], date[1][:-3])  # Используем срез, чтобы обрезать год и секунды
+
+    # @_benchmark
+    def plot(self):
+        fig = plt.figure(figsize=(6.6, 4.8), dpi=100)
+        ax = fig.add_subplot(111)
+        fig.patch.set_facecolor(self.bg_color)
+        ax.patch.set_facecolor(self.bg_color)
+        xdata = np.arange(0,len(self.all_data),1)
+        xmin, xmax = xdata[self.start_time], xdata[self.end_time]  # удаляем прогнозы на текущий день и на часть 5 дня
+        ymin, ymax = min(self.all_real_temp), max(self.all_temp)+2
+
+        # Создаем форматер
+        ax.xaxis.set_major_locator(ticker.MultipleLocator(1))
+        """Информация о FuncFormatter: позволяет гибко настраивать формат меток с помощью функции, 
+        которая будет возвращать строковое представление каждой метки"""
+        formatter = matplotlib.ticker.FuncFormatter(self.funcForFormatter)
+
+        # Установка форматера для оси X
+        ax.xaxis.set_major_formatter(formatter)
+        ax.set_xlim(xmin, xmax)
+        ax.set_ylim(ymin, ymax)
+        ax.set_title("Four day weather forecast", color='black', font=self.font, size=self.font_size)
+        ax.set_ylabel("Temperature, [°C]", font=self.font, size=self.font_size, color='black')
+        for i in np.arange(self.start_time, self.end_time, 8):
+            ax.vlines(i, ymin, ymax, color='black')
+        for i in np.arange(self.start_time+4, self.end_time, 8):
+            ax.vlines(i, ymin, ymax, color='black', linestyles='--')
+        ax.plot(xdata, self.all_temp, label='$T$', color='red')
+        ax.plot(xdata, self.all_real_temp, label='$T_{feel}$', color='#0F27FF')
+        plt.legend(fontsize=14, loc = 'lower left')
+
+        """# Паралелльное скачивание картинок
+        procs = []
+        for i in range(self.start_time-1, self.end_time):
+            proc = Process(target=self.all_ico, args=(i,))
+            procs.append(proc)
+            proc.start()
+        for proc in procs:
+            proc.join()  # Дожидаемся пока скачаются все и только потом идем дальше"""
+
+        ico_num_list = list(np.arange(self.start_time-1, self.end_time,1)) # -1 для скачивания каринки из текущего прогноза
+        ThreadPool(len(ico_num_list)).map(self.all_ico, ico_num_list)  # Параллельное скачивание картинок
+
+        for i in range(self.start_time, self.end_time, 1):
+            if i % 2:
+                test_im = plt.imread('for_plot{}.png'.format(i))
+                x0, y0 = ax.transData.transform((xdata[i]-1, ymax-2.5))
+                ax.figure.figimage(test_im, x0, 380, alpha=0.7)
+            else:
+                test_im = plt.imread('for_plot{}.png'.format(i))
+                x0, y0 = ax.transData.transform((xdata[i] - 1, ymax - 3.5))
+                ax.figure.figimage(test_im, x0, 380-20, alpha=0.7)
+        plt.savefig('plt.png')
+        plt.close()
+
+        im = Image.open('plt.png')
+        draw_text = ImageDraw.Draw(im)
+        draw_text.text((37,437),'day', fill='black')
+        draw_text.text((37, 453), 'time', fill='black')
+        im.save('plt.png')
+
+    def all_ico(self, i):
+        """Download ico-files"""
+        try:
+            if i == self.start_time-1:
+                #  Иконка текущей погоды
+                ico_name = self.weather['weather'][0]['icon']
+                ico_url = "https://openweathermap.org/img/wn/%s.png" % ico_name
+                response = requests.get(ico_url)
+                img = Image.open(BytesIO(response.content))
+                img.save('current.png')
+            else:
+                ico_name = self.weather_forecast['list'][i]['weather'][0]['icon']
+                ico_url = "https://openweathermap.org/img/wn/%s.png" % ico_name
+                response = requests.get(ico_url)
+                img = Image.open(BytesIO(response.content))
+                img.save('for_plot{}.png'.format(i))
+        except Exception as ex:
+            messagebox.showinfo(title='Error', message='Got data error: \n {}: {}'.format(ex.__class__, ex))
+
+
+if __name__ == '__main__':
+
+
+
+    """# Read the cert data
+    cert_data = pkgutil.get_data('certifi', 'cacert.pem')
+
+    # Write the cert data to a temporary file
+    handle = tempfile.NamedTemporaryFile(delete=False)
+    handle.write(cert_data)
+    handle.flush()
+
+    # Set the temporary file name to an environment variable for the requests package
+    os.environ['REQUESTS_CA_BUNDLE'] = handle.name
+
+    # Make requests using the requests package
+    requests.get('https://www.albertyw.com/')"""
+    app = App()

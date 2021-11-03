@@ -13,7 +13,7 @@ The program for determining the weather forecast in Russian cities.
 
 # Bug fixes at building source code:
 
-1) To fix bug with certificate for library requests:
+1) To fix requests error *"Could not find a suitable TLS CA certificate bundle"*:
 
 Create a **hook-requests.py** file in (venv) PyInstaller\hooks\ for the requests lib containing
 
